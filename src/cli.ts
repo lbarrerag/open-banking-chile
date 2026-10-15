@@ -10,7 +10,7 @@ async function main() {
 
   if (flags.has("--help") || flags.has("-h")) {
     const bankList = listBanks()
-      .map((b) => `  ${b.id.padEnd(15)} ${b.name}`)
+      .map((b) => `  ${b.id.padEnd(17)} ${b.name}`)
       .join("\n");
 
     console.log(`
@@ -37,6 +37,10 @@ Variables de entorno:
   <BANCO>_PASS     Tu clave de internet (ej: FALABELLA_PASS=miclave)
   CHROME_PATH      Ruta al ejecutable de Chrome/Chromium (opcional)
 
+  Los IDs con guión usan "_" en las variables:
+  santander-office → SANTANDER_OFFICE_RUT / SANTANDER_OFFICE_PASS
+  SANTANDER_OFFICE_RUTS  Limita a ciertos RUT (coma separada, default: todos)
+
 Ejemplos:
   # Banco Falabella
   FALABELLA_RUT=12345678-9 FALABELLA_PASS=miclave open-banking-chile --bank falabella --pretty
@@ -53,7 +57,7 @@ Ejemplos:
   if (flags.has("--list")) {
     console.log("\nBancos disponibles:\n");
     for (const b of listBanks()) {
-      console.log(`  ${b.id.padEnd(15)} ${b.name.padEnd(25)} ${b.url}`);
+      console.log(`  ${b.id.padEnd(17)} ${b.name.padEnd(25)} ${b.url}`);
     }
     console.log(`\nTotal: ${listBanks().length} banco(s)`);
     console.log("¿Tu banco no está? ¡Contribuye! Ver CONTRIBUTING.md\n");
@@ -85,8 +89,10 @@ Ejemplos:
     process.exit(1);
   }
 
-  // Get credentials from env
-  const prefix = bankId.toUpperCase();
+  // Get credentials from env.
+  // Los IDs con guión (ej: santander-office) usan "_" en las variables:
+  // SANTANDER_OFFICE_RUT / SANTANDER_OFFICE_PASS
+  const prefix = bankId.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
   const rut = process.env[`${prefix}_RUT`];
   const password = process.env[`${prefix}_PASS`];
 

@@ -7,6 +7,7 @@ import edwards from "./banks/edwards.js";
 import falabella from "./banks/falabella.js";
 import itau from "./banks/itau.js";
 import santander from "./banks/santander.js";
+import santanderOffice from "./banks/santander-office.js";
 import scotiabank from "./banks/scotiabank.js";
 import type { BankScraper } from "./types.js";
 import cencosud from "./banks/cencosud.js";
@@ -22,6 +23,7 @@ export const banks: Record<string, BankScraper> = {
   falabella,
   itau,
   santander,
+  "santander-office": santanderOffice,
   scotiabank,
   cencosud,
 };
@@ -42,6 +44,7 @@ export function getBank(id: string): BankScraper | undefined {
 
 // Re-export types
 export type {
+  AccountBalance,
   BankMovement,
   MovementSource,
   CardOwner,
@@ -63,6 +66,7 @@ export { default as edwards } from "./banks/edwards.js";
 export { default as falabella } from "./banks/falabella.js";
 export { default as itau } from "./banks/itau.js";
 export { default as santander } from "./banks/santander.js";
+export { default as santanderOffice } from "./banks/santander-office.js";
 export { default as bancosecurity } from "./banks/bancosecurity.js";
 export { default as scotiabank } from "./banks/scotiabank.js";
 export { default as cencosud } from "./banks/cencosud.js";

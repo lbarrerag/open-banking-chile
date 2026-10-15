@@ -57,6 +57,15 @@ export function findChrome(customPath?: string): string | null {
     // Windows (WSL)
     "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
     "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    // Windows (nativo)
+    ...(process.platform === "win32"
+      ? [
+          `${process.env.PROGRAMFILES || "C:\\Program Files"}\\Google\\Chrome\\Application\\chrome.exe`,
+          `${process.env["PROGRAMFILES(X86)"] || "C:\\Program Files (x86)"}\\Google\\Chrome\\Application\\chrome.exe`,
+          `${process.env.LOCALAPPDATA || ""}\\Google\\Chrome\\Application\\chrome.exe`,
+          `${process.env.PROGRAMFILES || "C:\\Program Files"}\\Chromium\\Application\\chrome.exe`,
+        ].filter((p) => !p.startsWith("\\"))
+      : []),
   ];
 
   for (const p of candidates) {

@@ -56,6 +56,7 @@ También en esta versión: utilidades compartidas (`parseChileanAmount`, `normal
 | Itaú                              | `itau`       | ✅ Funcional |
 | Banco Estado (CuentaRUT)          | `bestado`    | ✅ Funcional |
 | Tarjeta Cencosud                  | `cencosud`   | ✅ Funcional |
+| Santander Office Banking (empresas, multi-RUT) | `santander-office` | ⚠️ Sin validar contra el portal real |
 
 **¿Tu banco no está?** → [Contribuir](#contribuir)
 
@@ -316,6 +317,7 @@ src/
     edwards.ts                — Banco Edwards
     itau.ts                   — Itaú
     santander.ts              — Banco Santander
+    santander-office.ts       — Santander Office Banking (empresas, multi-RUT)
     scotiabank.ts             — Scotiabank Chile
 ```
 
@@ -390,6 +392,63 @@ interface BankScraper {
 ### BancoEstado y modo headless
 
 BancoEstado detecta navegadores headless a nivel de red (TLS fingerprinting), no solo por JavaScript. Ni `puppeteer-extra-plugin-stealth` ni `rebrowser-puppeteer-core` logran evadir esta detección. El scraper siempre corre en modo headful (Chrome visible).
+
+### Santander Office Banking (empresas, multi-RUT)
+
+`santander-office` es el portal de **empresas**, distinto de `santander` (personas). Entras con el RUT de **tu usuario de acceso** y el scraper recorre todos los RUT mandatados a ese usuario, uno por uno.
+
+```bash
+SANTANDER_OFFICE_RUT=12345678-5 SANTANDER_OFFICE_PASS=miclave \
+  node dist/cli.js --bank santander-office --headful --pretty
+```
+
+Cada cuenta del resultado viene etiquetada con el RUT de su titular:
+
+```json
+{
+  "accounts": [
+    {
+      "label": "Cuenta Corriente 000-12345-6",
+      "holderRut": "76086428-5",
+      "holderName": "COMERCIAL EJEMPLO SPA",
+      "movements": []
+    }
+  ]
+}
+```
+
+Variables opcionales (todas en `.env.example`):
+
+| Variable                        | Para qué                                                        |
+| ------------------------------- | --------------------------------------------------------------- |
+| `SANTANDER_OFFICE_COMPANY_RUT`  | RUT de la empresa, si tu login lo pide además del RUT de usuario |
+| `SANTANDER_OFFICE_RUTS`         | Limita a ciertos RUT: `76086428-5,77123456-7` (default: todos)   |
+| `SANTANDER_OFFICE_MAX_RUTS`     | Tope de RUT a recorrer (default: 20)                             |
+| `SANTANDER_OFFICE_MAX_ACCOUNTS` | Tope de cuentas por RUT (default: 10)                            |
+| `SANTANDER_OFFICE_MAX_PAGES`    | Tope de páginas de cartola por cuenta (default: 25)              |
+| `SANTANDER_OFFICE_URL`          | Fija la URL de login si el portal cambia de dirección            |
+
+#### El login no se puede automatizar
+
+El formulario vive en un iframe de `api.officebanking.cl/party_authentication_fob_login` y su `POST .../login` responde **HTTP 403** cuando lo envía un navegador automatizado: el form trae un `recaptchaToken` y el portal lo exige. Eso no se evade.
+
+La salida es entrar a mano una vez por corrida y dejar que el scraper siga solo:
+
+```bash
+SANTANDER_OFFICE_MANUAL_LOGIN=1 node dist/cli.js --bank santander-office --headful --screenshots --pretty
+```
+
+Con `--headful`, aunque el login automático falle, el scraper **no se cae**: espera hasta `SANTANDER_OFFICE_MANUAL_TIMEOUT_SEC` (default 300s) a que inicies sesión en la ventana de Chrome, detecta la sesión y continúa con el recorrido de RUT. `SANTANDER_OFFICE_MANUAL_LOGIN=1` se salta derechamente el intento automático, para no mandar tus credenciales a un endpoint que ya sabemos que las rechaza.
+
+Consecuencia práctica: **este banco no sirve para cron desatendido**, a diferencia del resto.
+
+**Estado: recorrido post-login sin validar.** El portal de empresas no expone una API JSON estable y sus IDs de DOM cambian entre releases, así que el scraper navega por **texto visible** y descubre los RUT validando módulo 11 sobre el texto de la página, en vez de usar selectores fijos. Eso lo hace tolerante a cambios de maquetado, pero el recorrido (selector de empresas → cartola) hay que verificarlo con una sesión real:
+
+```bash
+node dist/cli.js --bank santander-office --headful --screenshots --pretty
+```
+
+El `debug` del resultado va diciendo qué encontró en cada paso (`RUT detectados: N`, `Cartola: click en "..."`), y `./screenshots/` queda con una imagen por RUT. Si se detiene en algún paso, esos dos archivos muestran exactamente dónde.
 
 ### Tarjeta Cencosud y CAPTCHA
 

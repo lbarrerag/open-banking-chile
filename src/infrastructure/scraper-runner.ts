@@ -52,11 +52,16 @@ export async function runScraper(
     };
   } finally {
     if (session?.browser) {
-      try {
-        const pages = await session.browser.pages();
-        if (pages.length > 0) await logout(pages[pages.length - 1], session.debugLog);
-      } catch { /* best effort */ }
-      await session.browser.close().catch(() => {});
+      if (session.attached) {
+        // Es el navegador del usuario: ni cerrar su ventana ni su sesión.
+        try { session.browser.disconnect(); } catch { /* best effort */ }
+      } else {
+        try {
+          const pages = await session.browser.pages();
+          if (pages.length > 0) await logout(pages[pages.length - 1], session.debugLog);
+        } catch { /* best effort */ }
+        await session.browser.close().catch(() => {});
+      }
     }
   }
 }
