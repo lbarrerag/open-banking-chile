@@ -45,6 +45,14 @@ export interface AccountBalance {
   balance?: number;
   /** Movimientos de la cuenta */
   movements: BankMovement[];
+  /**
+   * RUT del titular de la cuenta, normalizado sin puntos (ej: "76086428-5").
+   * Solo lo llenan los bancos de empresas donde un mismo usuario accede a
+   * varios RUT (ej: Santander Office Banking).
+   */
+  holderRut?: string;
+  /** Razón social del titular, cuando el portal la expone junto al RUT */
+  holderName?: string;
 }
 
 /** Saldo de una tarjeta de crédito */

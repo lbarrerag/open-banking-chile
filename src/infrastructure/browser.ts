@@ -3,6 +3,13 @@ import { DebugLog, findChrome, saveScreenshot } from "../utils.js";
 
 export interface BrowserOptions {
   chromePath?: string;
+  /**
+   * Puerto de depuración de un Chrome ya abierto por el usuario. Si viene,
+   * no se lanza un navegador nuevo: se usa ese. Sirve para portales que
+   * bloquean a los navegadores lanzados por automatización (Office Banking).
+   * También se lee de CHROME_DEBUG_PORT.
+   */
+  attachPort?: number;
   headful?: boolean;
   /** Force headless mode off (e.g., Banco Estado TLS fingerprinting) */
   forceHeadful?: boolean;
@@ -18,6 +25,8 @@ export interface BrowserSession {
   debugLog: string[];
   /** Save a named screenshot (noop if screenshots disabled) */
   screenshot: (page: Page, name: string) => Promise<void>;
+  /** true si nos conectamos a un Chrome del usuario: no se cierra al terminar */
+  attached: boolean;
 }
 
 const DEFAULT_ARGS = [
@@ -54,8 +63,36 @@ export async function launchBrowser(
   options: BrowserOptions,
   saveScreenshots: boolean,
 ): Promise<BrowserSession> {
-  const { chromePath, headful, forceHeadful, extraArgs, viewport, onDebug } = options;
+  const { chromePath, attachPort, headful, forceHeadful, extraArgs, viewport, onDebug } = options;
   const debugLog: string[] = onDebug ? new DebugLog(onDebug) : [];
+
+  const doSave = async (p: Page, name: string) =>
+    saveScreenshot(p, name, saveScreenshots, debugLog);
+
+  // Modo adjunto: usamos el Chrome que el usuario ya tiene abierto (con su
+  // perfil y su sesión). No lleva flags de automatización, así que pasa por
+  // los portales que bloquean navegadores lanzados por puppeteer.
+  const port = attachPort ?? parseInt(process.env.CHROME_DEBUG_PORT ?? "", 10);
+  if (Number.isInteger(port) && port > 0) {
+    const browserURL = `http://127.0.0.1:${port}`;
+    let browser: Browser;
+    try {
+      browser = await puppeteer.connect({ browserURL, defaultViewport: null });
+    } catch (error) {
+      throw new Error(
+        `No se pudo conectar a Chrome en ${browserURL}.\n` +
+          `  Cierra Chrome por completo y ábrelo así:\n` +
+          `  chrome.exe --remote-debugging-port=${port}\n` +
+          `  Detalle: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    const pages = await browser.pages();
+    const page =
+      pages.find((p) => p.url().startsWith("http")) ?? pages[0] ?? (await browser.newPage());
+    debugLog.push(`  Conectado al Chrome existente en ${browserURL}`);
+    return { browser, page, debugLog, screenshot: doSave, attached: true };
+  }
 
   // Some banks (e.g. BancoEstado) block headless browsers via TLS fingerprinting
   // and require a visible Chrome window. On Linux this needs a display server.
@@ -94,8 +131,5 @@ export async function launchBrowser(
     Object.defineProperty(navigator, "webdriver", { get: () => false });
   });
 
-  const doSave = async (p: Page, name: string) =>
-    saveScreenshot(p, name, saveScreenshots, debugLog);
-
-  return { browser, page, debugLog, screenshot: doSave };
+  return { browser, page, debugLog, screenshot: doSave, attached: false };
 }

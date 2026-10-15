@@ -24,6 +24,7 @@ src/
   banks/
     falabella.ts, bchile.ts, bci.ts, bestado.ts, bice.ts,
     edwards.ts, itau.ts, santander.ts, scotiabank.ts
+    santander-office.ts      — Office Banking (empresas): un usuario → varios RUT
 ```
 
 ## How to help the user
